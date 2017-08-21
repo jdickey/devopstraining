@@ -21,6 +21,10 @@
          region: "{{ region }}"
          wait: true
          exact_count: 1
+         volumes: 
+         - device_name: /dev/sda1
+           device_type: gp2
+           delete_on_termination: true
          count_tag:
             Name: Demo
          instance_tags:
@@ -40,24 +44,40 @@
         createhome: yes
         name: '{{ user_name }}'
 
-    - name: Set directory permissions
-      file: 
-        path: /home/jeff/.ssh
-        state: directory
-        owner: jeff
-        mode: 0700
-
-    - name: Set file permissions
-      file:
-        path: /home/jeff/.ssh/authorized_keys
-        state: file
-        owner: jeff
-        mode=: 0600
-
     - name: Verify that the user's .authorized_keys file exists and is correct
       authorized_key:
         exclusive: no
-        key: "{{ lookup('file', 'id_rsa.pub') }}"
+        key: https://github.com/mitpaladin.keys
         state: present
         user: '{{ user_name }}'
 
+    - name: Upload new contents for the /etc/ssh/sshd_config file
+      become: yes
+      copy:
+        src: sshd_config.jj2
+        dest: /etc/ssh/sshd_config
+        mode: 0644
+        owner: root
+ 
+#    - name: Reload the sshd daemon
+#      become: yes
+#      service:
+#        name: sshd
+#        state: restarted
+# Fails with error msg -- fatal: [localhost]: FAILED! => {"changed": false, "failed": true, "msg": "get_service_tools not implemented on target platform"}, https://github.com/ansible/ansible-modules-core/pull/3694 suggests this is a launchd service mac os plugin issue fixed on ansible:devel but does not seem to be the case
+
+#    - name: Update and upgrade installed software
+#      become: yes
+#      apt:
+#        name: wget
+#        state: present
+# Fails with error msg -- fatal: [localhost]: FAILED! => {"changed": false, "cmd": "apt-get update", "failed": true, "msg": "[Errno 2] No such file or directory", "rc": 2}, seems wget is not installed on instance
+
+#    - name: Configure limited access for tcp/22 via UFW
+#      become: yes
+#      ufw:
+#        log: yes
+#        proto: tcp
+#        rule: limit
+#        port: 22
+# Fails with error msg -- fatal: [localhost]: FAILED! => {"changed": false, "failed": true, "msg": "Failed to find required executable ufw in paths: /Users/charlesdu/.rbenv/shims:/Users/charlesdu/.rbenv/shims:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/charlesdu/bin:/usr/local/MacGPG2/bin:/usr/local/sbin"}, so ufw must be installed via apt-get in the step above?
